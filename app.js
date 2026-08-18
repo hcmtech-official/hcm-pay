@@ -6,7 +6,7 @@
    people, not for anything that needs real security.
    ============================================================ */
 
-const STORAGE_KEY = "hcmpay_km_v1";
+const STORAGE_KEY = "hcmpay_km_v2";
 
 // this page is the dashboard — bounce back to login if there's no active session
 if (sessionStorage.getItem("hcmpay_authed") !== "1") {
@@ -58,13 +58,22 @@ function seedData() {
   const installments = [];
 
   // This month is an exception to the normal schedule: $2000 total due,
-  // split into three specific payments Harish gave explicitly.
+  // split into four specific payments Harish gave explicitly.
+  installments.push({
+    id: "seed-exception-0",
+    dueDate: "2026-08-05",
+    amountDue: 300,
+    amountPaid: 300,
+    note: "This month's exception schedule (1 of 4) — paid earlier in the month",
+    history: [{ date: "2026-08-05", amount: 300 }]
+  });
+
   installments.push({
     id: "seed-exception-1",
     dueDate: today,
     amountDue: 1000,
     amountPaid: 1000, // paid today, so marked paid on load
-    note: "This month's exception schedule (1 of 3)",
+    note: "This month's exception schedule (2 of 4)",
     history: [{ date: today, amount: 1000 }]
   });
 
@@ -79,7 +88,7 @@ function seedData() {
     dueDate: fri,
     amountDue: 200,
     amountPaid: 0,
-    note: "This month's exception schedule (2 of 3)",
+    note: "This month's exception schedule (3 of 4)",
     history: []
   });
 
@@ -89,7 +98,7 @@ function seedData() {
     dueDate: nextWed,
     amountDue: 500,
     amountPaid: 0,
-    note: "This month's exception schedule (3 of 3)",
+    note: "This month's exception schedule (4 of 4)",
     history: []
   });
 
@@ -133,6 +142,42 @@ function saveData(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
+/* ---------------- backup / restore (file-based) ----------------
+   This is a static site with no server, so there's no shared database.
+   Browser storage alone can be cleared or lost, so this gives a real
+   way to save the data to an actual file and load it back in —
+   on this device or a different one.
+------------------------------------------------------------------- */
+
+function downloadBackup() {
+  const blob = new Blob([JSON.stringify(DATA, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `hcm-pay-backup-${todayISO()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function restoreFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (!parsed.installments || !parsed.paydays) throw new Error("Not a valid HCM Pay backup file");
+      DATA = parsed;
+      saveData(DATA);
+      renderAll();
+      alert("Backup restored.");
+    } catch (e) {
+      alert("Couldn't read that file — make sure it's a HCM Pay backup .json file.");
+    }
+  };
+  reader.readAsText(file);
+}
+
 let DATA = loadData();
 let ROLE = "payer"; // 'payer' | 'payee'
 
@@ -159,6 +204,16 @@ function nextUnpaid() {
 }
 
 /* ==================== SIGN OUT ==================== */
+
+document.getElementById("backup-btn").addEventListener("click", downloadBackup);
+document.getElementById("restore-btn").addEventListener("click", () => {
+  document.getElementById("restore-file-input").click();
+});
+document.getElementById("restore-file-input").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) restoreFromFile(file);
+  e.target.value = "";
+});
 
 document.getElementById("logout-btn").addEventListener("click", () => {
   sessionStorage.removeItem("hcmpay_authed");
