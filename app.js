@@ -144,7 +144,7 @@ loginForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const u = document.getElementById("login-user").value.trim();
   const p = document.getElementById("login-pass").value;
-  if (u === AUTH.user && p === AUTH.pass) {
+  if (u.toLowerCase() === AUTH.user.toLowerCase() && p === AUTH.pass) {
     sessionStorage.setItem("hcmpay_authed", "1");
     loginError.hidden = true;
     showApp();
