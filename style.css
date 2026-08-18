@@ -180,6 +180,7 @@ h1,h2,h3{ font-family: var(--font-display); font-weight: 700; margin: 0; }
 
 /* ---------- modal ---------- */
 .modal-backdrop{ position: fixed; inset:0; background: rgba(4,4,10,.68); backdrop-filter: blur(3px); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 20px; }
+.modal-backdrop[hidden]{ display: none; }
 .modal{ width:100%; max-width: 400px; background: linear-gradient(180deg,#15162A,#101120); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 26px; }
 .modal h3{ font-size: 18px; margin-bottom: 6px; }
 .modal-sub{ font-size: 13px; color: var(--text-dim); margin: 0 0 18px; }
