@@ -6,8 +6,12 @@
    people, not for anything that needs real security.
    ============================================================ */
 
-const AUTH = { user: "admin", pass: "frog123" };
 const STORAGE_KEY = "hcmpay_km_v1";
+
+// this page is the dashboard — bounce back to login if there's no active session
+if (sessionStorage.getItem("hcmpay_authed") !== "1") {
+  window.location.href = "index.html";
+}
 const MS_DAY = 86400000;
 
 /* ---------------- data model ----------------
@@ -53,18 +57,45 @@ function seedData() {
   const today = todayISO();
   const installments = [];
 
-  // This month: atypical catch-up. 1700 total due today, already recorded.
+  // This month is an exception to the normal schedule: $2000 total due,
+  // split into three specific payments Harish gave explicitly.
   installments.push({
-    id: "seed-catchup",
+    id: "seed-exception-1",
     dueDate: today,
-    amountDue: 1700,
+    amountDue: 1000,
+    amountPaid: 1000, // paid today, so marked paid on load
+    note: "This month's exception schedule (1 of 3)",
+    history: [{ date: today, amount: 1000 }]
+  });
+
+  const fri = (() => {
+    const d = new Date(today + "T00:00:00");
+    const diff = (5 - d.getDay() + 7) % 7; // Friday = 5
+    d.setDate(d.getDate() + (diff === 0 ? 7 : diff));
+    return todayISO(d);
+  })();
+  installments.push({
+    id: "seed-exception-2",
+    dueDate: fri,
+    amountDue: 200,
     amountPaid: 0,
-    note: "This month's catch-up amount (not the usual schedule)",
+    note: "This month's exception schedule (2 of 3)",
     history: []
   });
 
-  // Steady state from next month: $1000 every 2 weeks on a Wednesday, for a year.
-  let cursor = nextWednesday(today);
+  const nextWed = nextWednesday(today);
+  installments.push({
+    id: "seed-exception-3",
+    dueDate: nextWed,
+    amountDue: 500,
+    amountPaid: 0,
+    note: "This month's exception schedule (3 of 3)",
+    history: []
+  });
+
+  // Steady state resumes the Wednesday two weeks after the last exception
+  // payment: $1000 every 2 weeks on a Wednesday, for a year.
+  let cursor = addDays(nextWed, 14);
   for (let i = 0; i < 26; i++) {
     installments.push({
       id: "seed-recurring-" + i,
@@ -127,43 +158,12 @@ function nextUnpaid() {
   return sortedInstallments().find(i => installmentStatus(i) !== "paid");
 }
 
-/* ==================== LOGIN ==================== */
-
-const loginScreen = document.getElementById("login-screen");
-const appRoot = document.getElementById("app");
-const loginForm = document.getElementById("login-form");
-const loginError = document.getElementById("login-error");
-
-function checkSession() {
-  if (sessionStorage.getItem("hcmpay_authed") === "1") {
-    showApp();
-  }
-}
-
-loginForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const u = document.getElementById("login-user").value.trim();
-  const p = document.getElementById("login-pass").value;
-  if (u.toLowerCase() === AUTH.user.toLowerCase() && p === AUTH.pass) {
-    sessionStorage.setItem("hcmpay_authed", "1");
-    loginError.hidden = true;
-    showApp();
-  } else {
-    loginError.hidden = false;
-  }
-});
+/* ==================== SIGN OUT ==================== */
 
 document.getElementById("logout-btn").addEventListener("click", () => {
   sessionStorage.removeItem("hcmpay_authed");
-  appRoot.hidden = true;
-  loginScreen.hidden = false;
+  window.location.href = "index.html";
 });
-
-function showApp() {
-  loginScreen.hidden = true;
-  appRoot.hidden = false;
-  renderAll();
-}
 
 /* ==================== ROLE SWITCH ==================== */
 
@@ -591,4 +591,4 @@ function renderAll() {
   renderCalendar();
 }
 
-checkSession();
+renderAll();
