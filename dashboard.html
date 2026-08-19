@@ -111,11 +111,15 @@
       <section class="panel">
         <div class="panel-head">
           <h2>Calendar</h2>
-          <span class="panel-sub" id="cal-month-label">—</span>
+          <div class="cal-nav">
+            <button class="btn btn-ghost btn-sm cal-nav-btn" id="cal-prev">‹</button>
+            <span class="panel-sub" id="cal-month-label">—</span>
+            <button class="btn btn-ghost btn-sm cal-nav-btn" id="cal-next">›</button>
+          </div>
         </div>
         <div class="cal-grid" id="cal-grid"></div>
         <div class="cal-legend">
-          <span><i class="dot dot-due"></i> Due</span>
+          <span><i class="dot dot-due"></i> Due — tap to log a payment</span>
           <span><i class="dot dot-paid"></i> Paid</span>
           <span><i class="dot dot-partial"></i> Partial</span>
         </div>

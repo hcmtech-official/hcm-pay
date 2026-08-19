@@ -176,13 +176,16 @@ h1,h2,h3{ font-family: var(--font-display); font-weight: 700; margin: 0; }
 .payday-row.soon{ border-color: var(--indigo-dim); background: rgba(91,87,255,.08); }
 
 /* ---------- calendar ---------- */
+.cal-nav{ display:flex; align-items:center; gap:8px; }
+.cal-nav-btn{ padding: 4px 10px; font-size: 15px; line-height:1; }
 .cal-grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:5px; }
 .cal-dow{ font-size: 10px; color: var(--text-faint); text-align:center; padding-bottom:4px; }
 .cal-cell{ aspect-ratio: 1; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border-soft); display:flex; align-items:center; justify-content:center; font-size: 11px; color: var(--text-dim); position:relative; }
 .cal-cell.empty{ background: transparent; border-color: transparent; }
-.cal-cell.due{ background: rgba(255,92,92,.14); border-color: rgba(255,92,92,.3); color: var(--red); }
-.cal-cell.paid{ background: rgba(51,214,159,.14); border-color: rgba(51,214,159,.3); color: var(--green); }
-.cal-cell.partial{ background: rgba(255,180,84,.14); border-color: rgba(255,180,84,.3); color: var(--amber); }
+.cal-cell.due{ background: rgba(255,92,92,.14); border-color: rgba(255,92,92,.3); color: var(--red); cursor: pointer; }
+.cal-cell.due:hover{ border-color: var(--red); }
+.cal-cell.paid{ background: rgba(51,214,159,.14); border-color: rgba(51,214,159,.3); color: var(--green); cursor: pointer; }
+.cal-cell.partial{ background: rgba(255,180,84,.14); border-color: rgba(255,180,84,.3); color: var(--amber); cursor: pointer; }
 .cal-legend{ display:flex; gap:16px; margin-top:12px; font-size: 11.5px; color: var(--text-dim); }
 .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
 .dot-due{ background: var(--red); } .dot-paid{ background: var(--green); } .dot-partial{ background: var(--amber); }
@@ -191,6 +194,7 @@ h1,h2,h3{ font-family: var(--font-display); font-weight: 700; margin: 0; }
 .game-panel{ position:relative; }
 .game-blurb{ font-size: 13px; color: var(--text-dim); margin: -6px 0 14px; }
 .game-area{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+#history-chart{ width: 100%; height: auto; max-width: 100%; display: block; }
 #game-canvas{ width:100%; max-width: 640px; border-radius: 14px; background: linear-gradient(180deg,#0D0E1C,#141530); border: 1px solid var(--border); cursor: crosshair; }
 .game-hud{ font-family: var(--font-mono); font-size: 13px; color: var(--indigo-bright); }
 

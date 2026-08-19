@@ -516,13 +516,20 @@ function renderHistoryChart() {
 
 /* ==================== RENDER: CALENDAR HEATMAP ==================== */
 
+let calMonthOffset = 0; // 0 = current real month; +1 = next month, -1 = previous, etc.
+
+function calDisplayedYearMonth() {
+  const today = new Date(todayISO() + "T00:00:00");
+  const d = new Date(today.getFullYear(), today.getMonth() + calMonthOffset, 1);
+  return { year: d.getFullYear(), month: d.getMonth() };
+}
+
 function renderCalendar() {
   const grid = document.getElementById("cal-grid");
   grid.innerHTML = "";
-  const today = new Date(todayISO() + "T00:00:00");
-  const year = today.getFullYear(), month = today.getMonth();
+  const { year, month } = calDisplayedYearMonth();
   document.getElementById("cal-month-label").textContent =
-    today.toLocaleDateString("en-AU", { month: "long", year: "numeric" });
+    new Date(year, month, 1).toLocaleDateString("en-AU", { month: "long", year: "numeric" });
 
   ["S", "M", "T", "W", "T", "F", "S"].forEach(d => {
     const el = document.createElement("div");
@@ -533,11 +540,12 @@ function renderCalendar() {
 
   const firstDow = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const ym = `${year}-${String(month + 1).padStart(2, "0")}`;
 
   const byDate = {};
   DATA.installments.forEach(i => {
-    if (i.dueDate.slice(0, 7) === todayISO().slice(0, 7)) {
-      byDate[i.dueDate] = installmentStatus(i);
+    if (i.dueDate.slice(0, 7) === ym) {
+      byDate[i.dueDate] = i;
     }
   });
 
@@ -547,14 +555,37 @@ function renderCalendar() {
     grid.appendChild(el);
   }
   for (let d = 1; d <= daysInMonth; d++) {
-    const iso = todayISO(new Date(year, month, d));
+    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const el = document.createElement("div");
-    const status = byDate[iso];
+    const inst = byDate[iso];
+    const status = inst ? installmentStatus(inst) : null;
     el.className = "cal-cell" + (status ? " " + status : "");
     el.textContent = d;
+
+    if (inst) {
+      const remaining = Math.max(0, inst.amountDue - inst.amountPaid);
+      el.title = status === "paid"
+        ? `${fmtMoney(inst.amountPaid)} paid on ${fmtDate(iso)}`
+        : `${fmtMoney(remaining)} due ${fmtDate(iso)}${status === "partial" ? ` (${fmtMoney(inst.amountPaid)} already paid)` : ""}`;
+
+      if (status !== "paid" && ROLE === "payer") {
+        el.addEventListener("click", () => openPaymentModal(inst.id));
+      } else {
+        el.addEventListener("click", () => alert(el.title));
+      }
+    }
     grid.appendChild(el);
   }
 }
+
+document.getElementById("cal-prev").addEventListener("click", () => {
+  calMonthOffset -= 1;
+  renderCalendar();
+});
+document.getElementById("cal-next").addEventListener("click", () => {
+  calMonthOffset += 1;
+  renderCalendar();
+});
 
 /* ==================== GAME: Coin Run ==================== */
 
