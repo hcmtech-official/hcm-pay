@@ -223,7 +223,6 @@ document.getElementById("ov-next-card").addEventListener("click", () => {
   row.classList.add("flash");
 });
 
-document.getElementById("backup-btn").addEventListener("click", downloadBackup);
 document.getElementById("restore-btn").addEventListener("click", () => {
   document.getElementById("restore-file-input").click();
 });
