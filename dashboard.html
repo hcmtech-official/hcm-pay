@@ -123,6 +123,20 @@
       </section>
     </div>
 
+    <section class="panel game-panel">
+      <div class="panel-head">
+        <h2>Coin Run <span class="pill">just for fun</span></h2>
+        <button class="btn btn-secondary btn-sm" id="game-toggle">Play</button>
+      </div>
+      <p class="game-blurb">Pop the coins to reveal what's coming up — keeps going across every month, not just this one.</p>
+      <div id="game-area" class="game-area" hidden>
+        <canvas id="game-canvas" width="640" height="320"></canvas>
+        <div class="game-hud">
+          <span id="game-reveal">Tap a coin to reveal the next payment.</span>
+        </div>
+      </div>
+    </section>
+
   </main>
 </div>
 

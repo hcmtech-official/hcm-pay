@@ -588,6 +588,117 @@ document.getElementById("cal-next").addEventListener("click", () => {
   renderCalendar();
 });
 
+/* ==================== GAME: Coin Run ==================== */
+
+let gameOn = false;
+let coins = [];
+let gameCoinQueue = [];
+let gameLoopHandle = null;
+
+function buildQueue() {
+  // Spans every future unpaid installment, not just the current calendar
+  // month — once one month's coins are popped, it moves into the next.
+  const upcoming = sortedInstallments().filter(i => installmentStatus(i) !== "paid");
+  gameCoinQueue = upcoming.length
+    ? upcoming.map(i => ({ amount: Math.max(0, i.amountDue - i.amountPaid), date: i.dueDate }))
+    : [{ amount: 0, date: null }];
+}
+
+document.getElementById("game-toggle").addEventListener("click", () => {
+  const area = document.getElementById("game-area");
+  gameOn = !gameOn;
+  area.hidden = !gameOn;
+  document.getElementById("game-toggle").textContent = gameOn ? "Stop" : "Play";
+  if (gameOn) startGame();
+});
+
+function startGame() {
+  buildQueue();
+  coins = [];
+  document.getElementById("game-reveal").textContent = "Tap a coin to reveal the next payment.";
+  spawnCoin();
+  if (gameLoopHandle) cancelAnimationFrame(gameLoopHandle);
+  gameLoopHandle = requestAnimationFrame(gameLoop);
+}
+
+const gcanvas = document.getElementById("game-canvas");
+const gctx = gcanvas.getContext("2d");
+
+function spawnCoin() {
+  if (!gameCoinQueue.length) {
+    document.getElementById("game-reveal").textContent = "That's every upcoming payment — nothing left to reveal.";
+    return;
+  }
+  const next = gameCoinQueue.shift();
+  coins.push({
+    x: 60 + Math.random() * (gcanvas.width - 120),
+    y: gcanvas.height + 30,
+    vy: -1.1 - Math.random() * 0.6,
+    r: 26,
+    amount: next.amount,
+    date: next.date,
+    popped: false,
+    popT: 0
+  });
+}
+
+function coinAt(clientX, clientY) {
+  const rect = gcanvas.getBoundingClientRect();
+  const x = (clientX - rect.left) * (gcanvas.width / rect.width);
+  const y = (clientY - rect.top) * (gcanvas.height / rect.height);
+  return coins.find(c => !c.popped && Math.hypot(c.x - x, c.y - y) < c.r + 10);
+}
+
+// pointerdown (not click) — fires immediately and consistently for both
+// touch and mouse, avoiding the tap-delay/missed-tap issues click has on
+// mobile canvases.
+gcanvas.addEventListener("pointerdown", (e) => {
+  if (!gameOn) return;
+  const c = coinAt(e.clientX, e.clientY);
+  if (!c) return;
+  c.popped = true;
+  c.popT = 40;
+  const label = c.date ? `${fmtMoney(c.amount)} due ${fmtDateShort(c.date)}` : "All caught up — nothing owing right now!";
+  document.getElementById("game-reveal").textContent = label;
+  setTimeout(() => { if (gameOn) spawnCoin(); }, 550);
+});
+
+function gameLoop() {
+  if (!gameOn) return;
+  gctx.clearRect(0, 0, gcanvas.width, gcanvas.height);
+
+  coins.forEach(c => {
+    if (!c.popped) {
+      c.y += c.vy;
+      if (c.y < -40) c.y = gcanvas.height + 30;
+    } else {
+      c.popT -= 1;
+      c.r += 0.6;
+    }
+    gctx.save();
+    gctx.globalAlpha = c.popped ? Math.max(0, c.popT / 40) : 1;
+    gctx.beginPath();
+    gctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+    const grad = gctx.createRadialGradient(c.x - 8, c.y - 8, 2, c.x, c.y, c.r);
+    grad.addColorStop(0, "#FFE9A8");
+    grad.addColorStop(1, "#E8AC2E");
+    gctx.fillStyle = grad;
+    gctx.fill();
+    gctx.lineWidth = 2;
+    gctx.strokeStyle = "#B8801A";
+    gctx.stroke();
+    gctx.fillStyle = "#5C3D0A";
+    gctx.font = "bold 13px Inter, sans-serif";
+    gctx.textAlign = "center";
+    gctx.textBaseline = "middle";
+    gctx.fillText("$", c.x, c.y);
+    gctx.restore();
+  });
+
+  coins = coins.filter(c => !(c.popped && c.popT <= 0));
+  gameLoopHandle = requestAnimationFrame(gameLoop);
+}
+
 /* ==================== RENDER ALL ==================== */
 
 function renderAll() {
