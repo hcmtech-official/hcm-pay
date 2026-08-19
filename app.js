@@ -210,6 +210,19 @@ function nextUnpaid() {
 
 /* ==================== SIGN OUT ==================== */
 
+document.getElementById("ov-next-card").addEventListener("click", () => {
+  const card = document.getElementById("ov-next-card");
+  const targetId = card.dataset.targetId;
+  if (!targetId) return;
+  const row = document.querySelector(`.sched-row[data-inst-id="${targetId}"]`);
+  if (!row) return;
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+  row.classList.remove("flash");
+  // restart the animation even if it was already played
+  void row.offsetWidth;
+  row.classList.add("flash");
+});
+
 document.getElementById("backup-btn").addEventListener("click", downloadBackup);
 document.getElementById("restore-btn").addEventListener("click", () => {
   document.getElementById("restore-file-input").click();
@@ -250,6 +263,7 @@ function renderOverview() {
   document.getElementById("ov-remaining").textContent = fmtMoney(remaining);
 
   const next = nextUnpaid();
+  const nextCard = document.getElementById("ov-next-card");
   if (next) {
     document.getElementById("ov-next").textContent = fmtDateShort(next.dueDate);
     const days = Math.round((new Date(next.dueDate) - new Date(todayISO())) / MS_DAY);
@@ -259,9 +273,13 @@ function renderOverview() {
     else if (days === 1) label = "due tomorrow";
     else label = `in ${days} days`;
     document.getElementById("ov-countdown").textContent = label;
+    nextCard.dataset.targetId = next.id;
+    nextCard.title = `Tap to see this in the schedule below`;
   } else {
     document.getElementById("ov-next").textContent = "All paid";
     document.getElementById("ov-countdown").textContent = "—";
+    delete nextCard.dataset.targetId;
+    nextCard.title = "";
   }
 
   // tank
@@ -289,6 +307,7 @@ function renderSchedule() {
     const status = installmentStatus(inst);
     const row = document.createElement("div");
     row.className = "sched-row";
+    row.dataset.instId = inst.id;
 
     const remaining = Math.max(0, inst.amountDue - inst.amountPaid);
     row.innerHTML = `
