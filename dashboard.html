@@ -32,8 +32,6 @@
           <span class="avatar avatar-payee">💃</span> KM
         </button>
       </div>
-      <button class="btn btn-ghost btn-sm" id="restore-btn" title="Load data back in from a backup file">Restore</button>
-      <input type="file" id="restore-file-input" accept="application/json" hidden />
       <button class="btn btn-ghost btn-sm" id="logout-btn">Sign out</button>
     </div>
   </header>
@@ -124,20 +122,6 @@
         </div>
       </section>
     </div>
-
-    <section class="panel game-panel">
-      <div class="panel-head">
-        <h2>Coin Run <span class="pill">just for fun</span></h2>
-        <button class="btn btn-secondary btn-sm" id="game-toggle">Play</button>
-      </div>
-      <p class="game-blurb">Pop the coins to reveal what's coming up this month — your call, not required.</p>
-      <div id="game-area" class="game-area" hidden>
-        <canvas id="game-canvas" width="640" height="320"></canvas>
-        <div class="game-hud">
-          <span id="game-reveal">Shoot a coin to reveal the next payment.</span>
-        </div>
-      </div>
-    </section>
 
   </main>
 </div>

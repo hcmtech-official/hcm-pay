@@ -190,13 +190,7 @@ h1,h2,h3{ font-family: var(--font-display); font-weight: 700; margin: 0; }
 .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
 .dot-due{ background: var(--red); } .dot-paid{ background: var(--green); } .dot-partial{ background: var(--amber); }
 
-/* ---------- game ---------- */
-.game-panel{ position:relative; }
-.game-blurb{ font-size: 13px; color: var(--text-dim); margin: -6px 0 14px; }
-.game-area{ display:flex; flex-direction:column; align-items:center; gap:12px; }
 #history-chart{ width: 100%; height: auto; max-width: 100%; display: block; }
-#game-canvas{ width:100%; max-width: 640px; border-radius: 14px; background: linear-gradient(180deg,#0D0E1C,#141530); border: 1px solid var(--border); cursor: crosshair; }
-.game-hud{ font-family: var(--font-mono); font-size: 13px; color: var(--indigo-bright); }
 
 /* ---------- modal ---------- */
 .modal-backdrop{ position: fixed; inset:0; background: rgba(4,4,10,.68); backdrop-filter: blur(3px); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 20px; }

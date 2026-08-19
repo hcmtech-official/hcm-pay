@@ -147,42 +147,6 @@ function saveData(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-/* ---------------- backup / restore (file-based) ----------------
-   This is a static site with no server, so there's no shared database.
-   Browser storage alone can be cleared or lost, so this gives a real
-   way to save the data to an actual file and load it back in —
-   on this device or a different one.
-------------------------------------------------------------------- */
-
-function downloadBackup() {
-  const blob = new Blob([JSON.stringify(DATA, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `hcm-pay-backup-${todayISO()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function restoreFromFile(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const parsed = JSON.parse(reader.result);
-      if (!parsed.installments || !parsed.paydays) throw new Error("Not a valid HCM Pay backup file");
-      DATA = parsed;
-      saveData(DATA);
-      renderAll();
-      alert("Backup restored.");
-    } catch (e) {
-      alert("Couldn't read that file — make sure it's a HCM Pay backup .json file.");
-    }
-  };
-  reader.readAsText(file);
-}
-
 let DATA = loadData();
 let ROLE = "payer"; // 'payer' | 'payee'
 
@@ -221,15 +185,6 @@ document.getElementById("ov-next-card").addEventListener("click", () => {
   // restart the animation even if it was already played
   void row.offsetWidth;
   row.classList.add("flash");
-});
-
-document.getElementById("restore-btn").addEventListener("click", () => {
-  document.getElementById("restore-file-input").click();
-});
-document.getElementById("restore-file-input").addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (file) restoreFromFile(file);
-  e.target.value = "";
 });
 
 document.getElementById("logout-btn").addEventListener("click", () => {
@@ -448,14 +403,14 @@ function renderHistoryChart() {
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
 
-  // Start from the month this tracker actually began (not "6 months back",
-  // which was mostly empty since there's no history before that), and run
-  // forward, showing amount actually paid per month so far.
+  // Start from the month this tracker actually began, run forward.
+  // Stacked bar chart: each bar is a month's TOTAL amount due, with the
+  // paid portion filled green from the bottom and whatever's left in red
+  // stacked on top — so you can see at a glance how full each month is.
   const [startY, startM] = (DATA.createdAt || todayISO()).split("-").map(Number);
-  const MONTH_SPAN = 8; // months shown forward from the start month
+  const MONTH_SPAN = 8;
   const months = [];
   for (let i = 0; i < MONTH_SPAN; i++) {
-    // pure calendar-month arithmetic, no UTC conversion involved
     const totalMonthIndex = (startM - 1) + i;
     const y = startY + Math.floor(totalMonthIndex / 12);
     const m = (totalMonthIndex % 12) + 1;
@@ -463,23 +418,22 @@ function renderHistoryChart() {
     const label = new Date(y, m - 1, 1).toLocaleDateString("en-AU", { month: "short" });
     months.push({ ym, label });
   }
-  const totals = months.map(m => {
-    return DATA.installments
-      .filter(i => i.dueDate.slice(0, 7) === m.ym)
-      .reduce((s, i) => s + i.amountPaid, 0);
+  const monthTotals = months.map(m => {
+    const insts = DATA.installments.filter(i => i.dueDate.slice(0, 7) === m.ym);
+    const due = insts.reduce((s, i) => s + i.amountDue, 0);
+    const paid = insts.reduce((s, i) => s + i.amountPaid, 0);
+    return { due, paid, remaining: Math.max(0, due - paid) };
   });
-  const max = Math.max(1000, ...totals);
+  const max = Math.max(1000, ...monthTotals.map(t => t.due));
 
-  const padL = 40, padB = 26, padT = 34, padR = 14;
+  const padL = 44, padB = 26, padT = 34, padR = 14;
   const w = W - padL - padR, h = H - padT - padB;
 
-  // chart title, so it's clear at a glance what this is showing
   ctx.fillStyle = "#F1F1F8";
   ctx.font = "600 12px Inter, sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText("Amount paid, by month ($)", padL - 2, 18);
+  ctx.fillText("Amount due, by month — green = paid, red = remaining", padL - 2, 18);
 
-  // grid lines
   ctx.strokeStyle = "#1D1E33";
   ctx.lineWidth = 1;
   for (let g = 0; g <= 3; g++) {
@@ -487,55 +441,78 @@ function renderHistoryChart() {
     ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
   }
 
-  // line path
-  const pts = totals.map((t, i) => {
-    const x = padL + (w / (totals.length - 1)) * i;
-    const y = padT + h - (t / max) * h;
-    return [x, y];
-  });
+  const barGap = 10;
+  const barW = Math.min(46, (w / months.length) - barGap);
+  const slot = w / months.length;
 
-  const grad = ctx.createLinearGradient(0, padT, 0, padT + h);
-  grad.addColorStop(0, "rgba(124,121,255,.35)");
-  grad.addColorStop(1, "rgba(124,121,255,0)");
-  ctx.beginPath();
-  ctx.moveTo(pts[0][0], padT + h);
-  pts.forEach(p => ctx.lineTo(p[0], p[1]));
-  ctx.lineTo(pts[pts.length - 1][0], padT + h);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
+  monthTotals.forEach((t, i) => {
+    const cx = padL + slot * i + slot / 2;
+    const barX = cx - barW / 2;
+    const dueH = (t.due / max) * h;
+    const paidH = (t.paid / max) * h;
+    const remH = (t.remaining / max) * h;
+    const barTopY = padT + h - dueH;
 
-  ctx.beginPath();
-  ctx.strokeStyle = "#7C79FF";
-  ctx.lineWidth = 2.5;
-  pts.forEach((p, i) => i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]));
-  ctx.stroke();
+    // background track for the full bar (subtle, shows the bar exists even at $0)
+    ctx.fillStyle = "#1A1B2E";
+    ctx.beginPath();
+    roundRectPath(ctx, barX, padT + h - Math.max(dueH, 2), barW, Math.max(dueH, 2), 6);
+    ctx.fill();
 
-  pts.forEach(p => {
-    ctx.beginPath(); ctx.arc(p[0], p[1], 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#0A0B14"; ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = "#7C79FF"; ctx.stroke();
-  });
-
-  // dollar value directly above each point that has a payment — so the
-  // number is right there, no guessing or hovering needed
-  ctx.fillStyle = "#C7C9E0";
-  ctx.font = "600 10.5px Inter, sans-serif";
-  ctx.textAlign = "center";
-  pts.forEach((p, i) => {
-    if (totals[i] > 0) {
-      ctx.fillText(fmtMoney(totals[i]), p[0], Math.max(p[1] - 10, padT + 10));
+    // red (remaining/unpaid) portion — stacked on top
+    if (t.remaining > 0) {
+      ctx.fillStyle = "#FF5C5C";
+      ctx.beginPath();
+      roundRectPath(ctx, barX, barTopY, barW, remH, 6, t.paid === 0);
+      ctx.fill();
     }
+
+    // green (paid) portion — stacked at the bottom
+    if (t.paid > 0) {
+      ctx.fillStyle = "#33D69F";
+      ctx.beginPath();
+      roundRectPath(ctx, barX, padT + h - paidH, barW, paidH, 6, t.remaining === 0);
+      ctx.fill();
+    }
+
+    // dollar label above the bar
+    if (t.due > 0) {
+      ctx.fillStyle = "#C7C9E0";
+      ctx.font = "600 10px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(fmtMoney(t.due), cx, Math.max(barTopY - 8, padT + 10));
+    }
+
+    // month label below
+    ctx.fillStyle = "#5C5F7E";
+    ctx.font = "11px Inter, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(months[i].label, cx, H - 8);
   });
 
-  // labels
   ctx.fillStyle = "#5C5F7E";
   ctx.font = "11px Inter, sans-serif";
-  ctx.textAlign = "center";
-  months.forEach((m, i) => ctx.fillText(m.label, pts[i][0], H - 8));
   ctx.textAlign = "right";
   ctx.fillText(fmtMoney(max), padL - 6, padT + 4);
   ctx.fillText("$0", padL - 6, padT + h + 4);
+}
+
+// Rounds only the top corners by default (bar grows from the bottom);
+// pass roundBottomToo=true for a bar that isn't stacked under anything else.
+function roundRectPath(ctx, x, y, width, height, radius, roundBottomToo) {
+  const r = Math.min(radius, width / 2, height / 2 <= 0 ? 0 : height / 2);
+  if (height <= 0) return;
+  const rTop = r;
+  const rBot = roundBottomToo ? r : 0;
+  ctx.moveTo(x, y + rTop);
+  ctx.arcTo(x, y, x + rTop, y, rTop);
+  ctx.lineTo(x + width - rTop, y);
+  ctx.arcTo(x + width, y, x + width, y + rTop, rTop);
+  ctx.lineTo(x + width, y + height - rBot);
+  ctx.arcTo(x + width, y + height, x + width - rBot, y + height, rBot);
+  ctx.lineTo(x + rBot, y + height);
+  ctx.arcTo(x, y + height, x, y + height - rBot, rBot);
+  ctx.closePath();
 }
 
 /* ==================== RENDER: CALENDAR HEATMAP ==================== */
@@ -610,106 +587,6 @@ document.getElementById("cal-next").addEventListener("click", () => {
   calMonthOffset += 1;
   renderCalendar();
 });
-
-/* ==================== GAME: Coin Run ==================== */
-
-let gameOn = false;
-let coins = [];
-let gameCoinQueue = [];
-
-document.getElementById("game-toggle").addEventListener("click", () => {
-  const area = document.getElementById("game-area");
-  gameOn = !gameOn;
-  area.hidden = !gameOn;
-  document.getElementById("game-toggle").textContent = gameOn ? "Stop" : "Play";
-  if (gameOn) startGame();
-});
-
-function buildQueue() {
-  // Not limited to the current calendar month — once this month's coins are
-  // popped, the game keeps going into future months' scheduled payments.
-  const upcoming = sortedInstallments().filter(i => installmentStatus(i) !== "paid");
-  gameCoinQueue = upcoming.length
-    ? upcoming.map(i => ({ amount: Math.max(0, i.amountDue - i.amountPaid), date: i.dueDate }))
-    : [{ amount: 0, date: null }];
-}
-
-function startGame() {
-  buildQueue();
-  coins = [];
-  spawnCoin();
-  requestAnimationFrame(gameLoop);
-}
-
-const gcanvas = document.getElementById("game-canvas");
-const gctx = gcanvas.getContext("2d");
-const MASCOT = "🪙"; // neutral coin-collector mascot, no character sprite needed
-
-function spawnCoin() {
-  if (!gameCoinQueue.length) return;
-  const next = gameCoinQueue.shift();
-  coins.push({
-    x: 60 + Math.random() * (gcanvas.width - 120),
-    y: gcanvas.height + 30,
-    vy: -1.1 - Math.random() * 0.6,
-    r: 26,
-    amount: next.amount,
-    date: next.date,
-    popped: false,
-    popT: 0
-  });
-}
-
-gcanvas.addEventListener("click", (e) => {
-  const rect = gcanvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) * (gcanvas.width / rect.width);
-  const y = (e.clientY - rect.top) * (gcanvas.height / rect.height);
-  coins.forEach(c => {
-    if (!c.popped && Math.hypot(c.x - x, c.y - y) < c.r + 6) {
-      c.popped = true;
-      c.popT = 40;
-      const label = c.date ? `${fmtMoney(c.amount)} due ${fmtDateShort(c.date)}` : "All caught up this month!";
-      document.getElementById("game-reveal").textContent = label;
-      setTimeout(() => { if (gameOn) spawnCoin(); }, 550);
-    }
-  });
-});
-
-function gameLoop() {
-  if (!gameOn) return;
-  gctx.clearRect(0, 0, gcanvas.width, gcanvas.height);
-
-  coins.forEach(c => {
-    if (!c.popped) {
-      c.y += c.vy;
-      if (c.y < -40) c.y = gcanvas.height + 30;
-    } else {
-      c.popT -= 1;
-      c.r += 0.6;
-    }
-    gctx.save();
-    gctx.globalAlpha = c.popped ? Math.max(0, c.popT / 40) : 1;
-    gctx.beginPath();
-    gctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
-    const grad = gctx.createRadialGradient(c.x - 8, c.y - 8, 2, c.x, c.y, c.r);
-    grad.addColorStop(0, "#FFE9A8");
-    grad.addColorStop(1, "#E8AC2E");
-    gctx.fillStyle = grad;
-    gctx.fill();
-    gctx.lineWidth = 2;
-    gctx.strokeStyle = "#B8801A";
-    gctx.stroke();
-    gctx.fillStyle = "#5C3D0A";
-    gctx.font = "bold 13px Inter, sans-serif";
-    gctx.textAlign = "center";
-    gctx.textBaseline = "middle";
-    gctx.fillText("$", c.x, c.y);
-    gctx.restore();
-  });
-
-  coins = coins.filter(c => !(c.popped && c.popT <= 0));
-  requestAnimationFrame(gameLoop);
-}
 
 /* ==================== RENDER ALL ==================== */
 
