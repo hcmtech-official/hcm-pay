@@ -6,7 +6,7 @@
    people, not for anything that needs real security.
    ============================================================ */
 
-const STORAGE_KEY = "hcmpay_km_v3";
+const STORAGE_KEY = "hcmpay_km_v4";
 
 // this page is the dashboard — bounce back to login if there's no active session
 if (sessionStorage.getItem("hcmpay_authed") !== "1") {
