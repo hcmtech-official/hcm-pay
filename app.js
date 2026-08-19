@@ -449,12 +449,20 @@ function renderHistoryChart() {
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
 
-  // build last 6 months totals
-  const today = new Date(todayISO() + "T00:00:00");
+  // Start from the month this tracker actually began (not "6 months back",
+  // which was mostly empty since there's no history before that), and run
+  // forward, showing amount actually paid per month so far.
+  const [startY, startM] = (DATA.createdAt || todayISO()).split("-").map(Number);
+  const MONTH_SPAN = 8; // months shown forward from the start month
   const months = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    months.push({ ym: d.toISOString().slice(0, 7), label: d.toLocaleDateString("en-AU", { month: "short" }) });
+  for (let i = 0; i < MONTH_SPAN; i++) {
+    // pure calendar-month arithmetic, no UTC conversion involved
+    const totalMonthIndex = (startM - 1) + i;
+    const y = startY + Math.floor(totalMonthIndex / 12);
+    const m = (totalMonthIndex % 12) + 1;
+    const ym = `${y}-${String(m).padStart(2, "0")}`;
+    const label = new Date(y, m - 1, 1).toLocaleDateString("en-AU", { month: "short" });
+    months.push({ ym, label });
   }
   const totals = months.map(m => {
     return DATA.installments
