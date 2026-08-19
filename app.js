@@ -6,7 +6,7 @@
    people, not for anything that needs real security.
    ============================================================ */
 
-const STORAGE_KEY = "hcmpay_km_v2";
+const STORAGE_KEY = "hcmpay_km_v3";
 
 // this page is the dashboard — bounce back to login if there's no active session
 if (sessionStorage.getItem("hcmpay_authed") !== "1") {
@@ -19,24 +19,29 @@ installment: { id, dueDate (ISO), amountDue, amountPaid, note, history:[{date, a
 ------------------------------------------------ */
 
 function todayISO(d = new Date()) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x.toISOString().slice(0, 10);
+  // Reads the LOCAL calendar date (what the user actually perceives as "today")
+  // and formats it directly — no UTC conversion, so no timezone-driven drift.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function addDays(iso, days) {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return todayISO(d);
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
 }
 
 function nextWednesday(fromISO) {
-  const d = new Date(fromISO + "T00:00:00");
-  const day = d.getDay(); // 0 Sun ... 3 Wed
+  const [y, m, d] = fromISO.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const day = dt.getUTCDay(); // 0 Sun ... 3 Wed
   let diff = (3 - day + 7) % 7;
   if (diff === 0) diff = 7;
-  d.setDate(d.getDate() + diff);
-  return todayISO(d);
+  dt.setUTCDate(dt.getUTCDate() + diff);
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
 }
 
 function fmtMoney(n) {
