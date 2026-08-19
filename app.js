@@ -470,8 +470,14 @@ function renderHistoryChart() {
   });
   const max = Math.max(1000, ...totals);
 
-  const padL = 40, padB = 26, padT = 14, padR = 14;
+  const padL = 40, padB = 26, padT = 34, padR = 14;
   const w = W - padL - padR, h = H - padT - padB;
+
+  // chart title, so it's clear at a glance what this is showing
+  ctx.fillStyle = "#F1F1F8";
+  ctx.font = "600 12px Inter, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Amount paid, by month ($)", padL - 2, 18);
 
   // grid lines
   ctx.strokeStyle = "#1D1E33";
@@ -509,6 +515,17 @@ function renderHistoryChart() {
     ctx.beginPath(); ctx.arc(p[0], p[1], 3.5, 0, Math.PI * 2);
     ctx.fillStyle = "#0A0B14"; ctx.fill();
     ctx.lineWidth = 2; ctx.strokeStyle = "#7C79FF"; ctx.stroke();
+  });
+
+  // dollar value directly above each point that has a payment — so the
+  // number is right there, no guessing or hovering needed
+  ctx.fillStyle = "#C7C9E0";
+  ctx.font = "600 10.5px Inter, sans-serif";
+  ctx.textAlign = "center";
+  pts.forEach((p, i) => {
+    if (totals[i] > 0) {
+      ctx.fillText(fmtMoney(totals[i]), p[0], Math.max(p[1] - 10, padT + 10));
+    }
   });
 
   // labels
@@ -609,9 +626,11 @@ document.getElementById("game-toggle").addEventListener("click", () => {
 });
 
 function buildQueue() {
-  const monthInst = currentMonthInstallments().filter(i => installmentStatus(i) !== "paid");
-  gameCoinQueue = monthInst.length
-    ? monthInst.map(i => ({ amount: Math.max(0, i.amountDue - i.amountPaid), date: i.dueDate }))
+  // Not limited to the current calendar month — once this month's coins are
+  // popped, the game keeps going into future months' scheduled payments.
+  const upcoming = sortedInstallments().filter(i => installmentStatus(i) !== "paid");
+  gameCoinQueue = upcoming.length
+    ? upcoming.map(i => ({ amount: Math.max(0, i.amountDue - i.amountPaid), date: i.dueDate }))
     : [{ amount: 0, date: null }];
 }
 
